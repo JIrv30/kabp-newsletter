@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Staff are added by creating a document at admins/{their lowercase email} in the Firebase console
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
+    }
+
+    function isPublished(newsletterId) {
+      return get(/databases/$(database)/documents/newsletters/$(newsletterId)).data.status == 'published';
+    }
+
+    match /admins/{email} {
+      // Staff can check their own entry; the list itself is only edited in the console
+      allow read: if signedIn() && request.auth.token.email.lower() == email;
+      allow write: if false;
+    }
+
+    match /newsletters/{newsletterId} {
+      allow read: if resource.data.status == 'published' || isAdmin();
+      allow create, update, delete: if isAdmin();
+
+      // One anonymous document per visit
+      match /sessions/{sessionId} {
+        allow read, delete: if isAdmin();
+
+        allow create: if isPublished(newsletterId)
+          && request.resource.data.keys().hasOnly([
+               'visitorId', 'startedAt', 'lastSeenAt', 'expireAt', 'activeSeconds', 'maxScroll',
+               'blocksSeen', 'clicks', 'reaction', 'source', 'device'])
+          && request.resource.data.visitorId is string
+          && request.resource.data.visitorId.size() <= 64
+          && request.resource.data.startedAt == request.time
+          && request.resource.data.lastSeenAt == request.time
+          && request.resource.data.expireAt is timestamp
+          && request.resource.data.expireAt < request.time + duration.value(800, 'd')
+          && request.resource.data.activeSeconds == 0
+          && request.resource.data.maxScroll == 0
+          && request.resource.data.blocksSeen.size() == 0
+          && request.resource.data.clicks.size() == 0
+          && request.resource.data.reaction == null
+          && request.resource.data.source is string
+          && request.resource.data.source.size() <= 32
+          && request.resource.data.device in ['mobile', 'tablet', 'desktop'];
+
+        // Updates only touch the reading fields, only grow, and stop after three hours
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['lastSeenAt', 'activeSeconds', 'maxScroll', 'blocksSeen', 'clicks', 'reaction'])
+          && request.time < resource.data.startedAt + duration.value(3, 'h')
+          && request.resource.data.lastSeenAt == request.time
+          && request.resource.data.activeSeconds is number
+          && request.resource.data.activeSeconds >= resource.data.activeSeconds
+          && request.resource.data.activeSeconds <= 7200
+          && request.resource.data.maxScroll is number
+          && request.resource.data.maxScroll >= 0
+          && request.resource.data.maxScroll <= 100
+          && request.resource.data.blocksSeen.size() <= 300
+          && request.resource.data.clicks.size() <= 100
+          && (request.resource.data.reaction == null
+              || request.resource.data.reaction in ['thanks', 'love', 'celebrate']);
+      }
+    }
+  }
+}

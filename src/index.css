@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/* KABP brand tokens, taken from the school crest */
+@theme {
+  --color-navy: #13377e;
+  --color-navy-dark: #0d2a63;
+  --color-garter: #567bbd;
+  --color-gold: #fdb950;
+  --color-gold-soft: #fff4de;
+  --color-crest-red: #ee3a43;
+  --color-red-text: #a3121a;
+  --color-red-soft: #fdecec;
+  --color-mist: #eef2f9;
+  --color-line: #d6deec;
+  --color-ink: #142041;
+  --color-muted: #4b5878;
+
+  /* Atkinson Hyperlegible Next was designed for low-vision readers: clear on small phones */
+  --font-sans: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Bitter", Georgia, "Times New Roman", serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-white font-sans text-ink antialiased;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-garter);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .on-dark :focus-visible {
+    outline-color: var(--color-gold);
+  }
+}
+
+/* The banner shape from the crest: notched at both ends */
+.ribbon {
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.85rem) 50%, 100% 100%, 0 100%, 0.85rem 50%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ribbon-unfurl {
+    animation: ribbon-unfurl 560ms cubic-bezier(0.2, 0.8, 0.2, 1) 150ms both;
+    transform-origin: left center;
+  }
+  @keyframes ribbon-unfurl {
+    from {
+      transform: scaleX(0.15);
+      opacity: 0;
+    }
+    to {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+  }
+}
